@@ -20,6 +20,8 @@ const openTabs = new Set();
 function configurePanel() {
   if (!chrome.sidePanel?.setPanelBehavior) return;
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+  // No manifest default_path. Keep the fallback panel off so it cannot follow every tab.
+  chrome.sidePanel.setOptions({ enabled: false }).catch(() => {});
 }
 
 async function hydrateOpenTabs() {
@@ -31,53 +33,73 @@ function saveOpenTabs() {
   chrome.storage.session.set({ [OPEN_TABS]: [...openTabs] });
 }
 
-async function setTabPanel(tabId, enabled) {
-  await chrome.sidePanel.setOptions({
+function enableTab(tabId) {
+  return chrome.sidePanel.setOptions({
     tabId,
     path: "sidepanel.html",
-    enabled,
+    enabled: true,
   });
 }
 
-async function pinOpenTabs() {
+function disableTab(tabId) {
+  // Path is omitted on purpose. Setting the same path as a global panel
+  // creates a second instance and leaves the window-wide panel visible.
+  return chrome.sidePanel.setOptions({
+    tabId,
+    enabled: false,
+  });
+}
+
+function applyTab(tabId) {
+  return openTabs.has(tabId) ? enableTab(tabId) : disableTab(tabId);
+}
+
+async function restrictToOpenTabs() {
   const tabs = await chrome.tabs.query({});
   await Promise.all(
-    tabs
-      .filter((tab) => tab.id)
-      .map((tab) => setTabPanel(tab.id, openTabs.has(tab.id)))
+    tabs.filter((tab) => tab.id).map((tab) => applyTab(tab.id))
   );
 }
+
+const hydrated = hydrateOpenTabs().then(() => restrictToOpenTabs());
 
 chrome.runtime.onInstalled.addListener(configurePanel);
 chrome.runtime.onStartup.addListener(() => {
   configurePanel();
-  hydrateOpenTabs();
+  hydrated.then(() => restrictToOpenTabs()).catch(() => {});
 });
 configurePanel();
-hydrateOpenTabs();
 
 chrome.action.onClicked.addListener((tab) => {
   if (!tab.id) return;
   openTabs.add(tab.id);
   saveOpenTabs();
-  // open() has to run in this click, before any await, or Chrome rejects it.
+  // Both calls stay in this click. Awaiting first makes Chrome reject open().
+  // setOptions is sent first, so this tab gets its own panel before it opens.
+  enableTab(tab.id).catch((error) => console.error(error));
   chrome.sidePanel.open({ tabId: tab.id }).catch((error) => console.error(error));
-  pinOpenTabs().catch((error) => console.error(error));
+  restrictToOpenTabs().catch((error) => console.error(error));
 });
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  if (openTabs.size === 0) await hydrateOpenTabs();
-  if (openTabs.size === 0) return;
-  try {
-    await setTabPanel(tabId, openTabs.has(tabId));
-  } catch {
-    /* The tab can close before the panel options are applied. */
-  }
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  hydrated
+    .then(() => applyTab(tabId))
+    .catch(() => {
+      /* The tab can close before the panel options are applied. */
+    });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, info, tab) => {
+  if (!info.url && info.status !== "complete") return;
+  if (!tab.url) return;
+  hydrated
+    .then(() => applyTab(tabId))
+    .catch(() => {});
 });
 
 chrome.tabs.onCreated.addListener((tab) => {
-  if (!tab.id || openTabs.size === 0) return;
-  setTabPanel(tab.id, false).catch(() => {});
+  if (!tab.id) return;
+  disableTab(tab.id).catch(() => {});
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => {

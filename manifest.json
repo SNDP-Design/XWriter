@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XWriter",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Write five short replies to the open X post. The side panel stays on the tab where you opened it.",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
@@ -29,9 +29,6 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "side_panel": {
-    "default_path": "sidepanel.html"
   },
   "content_scripts": [
     {
