@@ -3,12 +3,15 @@ const MODEL = "gpt-4.1-mini";
 const KEY = "openaiApiKey";
 
 const SAMPLE_REPLIES = [
-  "The line people repeat is the one that can stand alone, not the one that is most precise.",
-  "The remembered sentence is usually the one that did not need the paragraph around it.",
+  "The line people repeat is the one that can stand alone.",
+  "The remembered sentence is usually the one that needed no paragraph.",
   "Which of your own lines do you now wish you had cut?",
-  "The quoted line is sometimes weaker than the one they skipped. That risk is still worth taking.",
-  "Write the sentence you would underline.",
+  "The quoted line is sometimes weaker than the one they skipped.",
+  "Write the sentence you would underline, then leave the rest out.",
 ];
+
+const REPLY_RULES =
+  'Write exactly five replies to a post on X. Return JSON {"replies":[string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, and a concise witty line. Use the same language as the post. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a person.';
 
 const els = {
   pageLabel: document.querySelector("#pageLabel"),
@@ -149,7 +152,40 @@ function postBrief(post) {
   };
 }
 
-async function requestReplies(post, apiKey) {
+function wordCount(text) {
+  return text.trim().split(/\s+/).filter(Boolean).length;
+}
+
+function withinWordLimit(replies) {
+  return replies.length === 5 && replies.every((text) => {
+    const count = wordCount(text);
+    return count >= 10 && count <= 12;
+  });
+}
+
+function readReplies(data) {
+  const content = data?.choices?.[0]?.message?.content || "";
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch {
+    throw new Error("OpenAI returned a reply list that could not be read.");
+  }
+
+  return (parsed.replies || parsed.comments || parsed.answers || [])
+    .map((item) => (typeof item === "string" ? item : item?.text || ""))
+    .map((text) => text.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+}
+
+async function askForReplies(post, apiKey, correction) {
+  const messages = [
+    { role: "system", content: REPLY_RULES },
+    { role: "user", content: JSON.stringify(postBrief(post)) },
+  ];
+  if (correction) messages.push({ role: "user", content: correction });
+
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -158,17 +194,10 @@ async function requestReplies(post, apiKey) {
     },
     body: JSON.stringify({
       model: MODEL,
-      temperature: 0.9,
-      max_tokens: 700,
+      temperature: 0.7,
+      max_tokens: 500,
       response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content:
-            'Write exactly five replies to a post on X. Return JSON {"replies":[string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, and a concise witty line. Use the same language as the post. Keep each reply under 280 characters. No hashtags. Do not repeat the post. Sound like a person.',
-        },
-        { role: "user", content: JSON.stringify(postBrief(post)) },
-      ],
+      messages,
     }),
   });
 
@@ -180,21 +209,24 @@ async function requestReplies(post, apiKey) {
     throw new Error(data?.error?.message || "OpenAI could not write the replies.");
   }
 
-  const content = data?.choices?.[0]?.message?.content || "";
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error("OpenAI returned a reply list that could not be read.");
-  }
-
-  const replies = (parsed.replies || parsed.comments || parsed.answers || [])
-    .map((item) => (typeof item === "string" ? item : item?.text || ""))
-    .map((text) => text.trim())
-    .filter(Boolean)
-    .slice(0, 5);
-
+  const replies = readReplies(data);
   if (replies.length < 5) throw new Error("OpenAI did not return five replies.");
+  return replies;
+}
+
+async function requestReplies(post, apiKey) {
+  let replies = await askForReplies(post, apiKey);
+  if (withinWordLimit(replies)) return replies;
+
+  const report = replies.map((text) => `${wordCount(text)} words: ${text}`).join("\n");
+  replies = await askForReplies(
+    post,
+    apiKey,
+    `Rewrite all five replies. Each one must be 10, 11, or 12 words.\n${report}`
+  );
+  if (!withinWordLimit(replies)) {
+    throw new Error("The replies were not 10 to 12 words. Tap New five to try again.");
+  }
   return replies;
 }
 
@@ -236,7 +268,7 @@ async function writeFive(post, { force = false } = {}) {
   els.refreshBtn.disabled = true;
   setBanner("");
   els.pageLabel.textContent = "Writing replies";
-  setStatus("Writing five replies…");
+  setStatus("Writing five replies, 10 to 12 words each…");
   if (!state.replies.length) showEmpty("Writing five replies", "This takes a moment.");
 
   try {
