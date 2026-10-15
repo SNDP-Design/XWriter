@@ -15,30 +15,20 @@ function isXUrl(url) {
 }
 
 const OPEN_TABS = "xwriterOpenTabs";
+const openTabs = new Set();
 
-async function configurePanel() {
-  if (!chrome.sidePanel?.setOptions) return;
-  await chrome.sidePanel.setOptions({ enabled: false });
-  if (chrome.sidePanel.setPanelBehavior) {
-    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
-  }
+function configurePanel() {
+  if (!chrome.sidePanel?.setPanelBehavior) return;
+  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
 }
 
-async function openTabIds() {
+async function hydrateOpenTabs() {
   const stored = await chrome.storage.session.get(OPEN_TABS);
-  return new Set(stored[OPEN_TABS] || []);
+  for (const id of stored[OPEN_TABS] || []) openTabs.add(id);
 }
 
-async function rememberTab(tabId) {
-  const ids = await openTabIds();
-  ids.add(tabId);
-  await chrome.storage.session.set({ [OPEN_TABS]: [...ids] });
-}
-
-async function forgetTab(tabId) {
-  const ids = await openTabIds();
-  if (!ids.delete(tabId)) return;
-  await chrome.storage.session.set({ [OPEN_TABS]: [...ids] });
+function saveOpenTabs() {
+  chrome.storage.session.set({ [OPEN_TABS]: [...openTabs] });
 }
 
 async function setTabPanel(tabId, enabled) {
@@ -49,28 +39,50 @@ async function setTabPanel(tabId, enabled) {
   });
 }
 
-chrome.runtime.onInstalled.addListener(configurePanel);
-chrome.runtime.onStartup.addListener(configurePanel);
-configurePanel();
+async function pinOpenTabs() {
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(
+    tabs
+      .filter((tab) => tab.id)
+      .map((tab) => setTabPanel(tab.id, openTabs.has(tab.id)))
+  );
+}
 
-chrome.action.onClicked.addListener(async (tab) => {
+chrome.runtime.onInstalled.addListener(configurePanel);
+chrome.runtime.onStartup.addListener(() => {
+  configurePanel();
+  hydrateOpenTabs();
+});
+configurePanel();
+hydrateOpenTabs();
+
+chrome.action.onClicked.addListener((tab) => {
   if (!tab.id) return;
-  await rememberTab(tab.id);
-  await setTabPanel(tab.id, true);
-  await chrome.sidePanel.open({ tabId: tab.id });
+  openTabs.add(tab.id);
+  saveOpenTabs();
+  // open() has to run in this click, before any await, or Chrome rejects it.
+  chrome.sidePanel.open({ tabId: tab.id }).catch((error) => console.error(error));
+  pinOpenTabs().catch((error) => console.error(error));
 });
 
 chrome.tabs.onActivated.addListener(async ({ tabId }) => {
-  const ids = await openTabIds();
+  if (openTabs.size === 0) await hydrateOpenTabs();
+  if (openTabs.size === 0) return;
   try {
-    await setTabPanel(tabId, ids.has(tabId));
+    await setTabPanel(tabId, openTabs.has(tabId));
   } catch {
     /* The tab can close before the panel options are applied. */
   }
 });
 
+chrome.tabs.onCreated.addListener((tab) => {
+  if (!tab.id || openTabs.size === 0) return;
+  setTabPanel(tab.id, false).catch(() => {});
+});
+
 chrome.tabs.onRemoved.addListener((tabId) => {
-  forgetTab(tabId);
+  if (!openTabs.delete(tabId)) return;
+  saveOpenTabs();
 });
 
 async function activeTab() {
