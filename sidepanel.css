@@ -207,9 +207,7 @@ input {
 }
 
 .answer {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 8px 10px;
+  display: block;
   width: 100%;
   padding: 12px;
   text-align: left;
@@ -219,12 +217,6 @@ input {
 .answer:hover,
 .answer.is-selected {
   border-color: var(--brand);
-}
-
-.answer-index {
-  color: var(--brand);
-  font-variant-numeric: tabular-nums;
-  font-weight: 750;
 }
 
 .answer p {

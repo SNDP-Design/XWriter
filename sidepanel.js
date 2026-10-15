@@ -119,14 +119,10 @@ function renderAnswers(replies) {
     card.className = "answer";
     card.dataset.index = String(index);
 
-    const number = document.createElement("span");
-    number.className = "answer-index";
-    number.textContent = String(index + 1);
-
     const body = document.createElement("p");
     body.textContent = text;
 
-    card.append(number, body);
+    card.append(body);
     item.append(card);
     els.answers.appendChild(item);
   });
@@ -434,9 +430,11 @@ async function init() {
   });
 
   if (!preview && chrome.tabs?.onActivated) {
-    chrome.tabs.onActivated.addListener(() => refresh());
+    chrome.tabs.onActivated.addListener(() => {
+      if (!document.hidden) refresh();
+    });
     chrome.tabs.onUpdated.addListener((tabId, info) => {
-      if (!(info.url || info.status === "complete")) return;
+      if (document.hidden || !(info.url || info.status === "complete")) return;
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (tabs[0]?.id === tabId) refresh();
       });

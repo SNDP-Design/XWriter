@@ -14,14 +14,64 @@ function isXUrl(url) {
   }
 }
 
-function enableSidePanel() {
-  if (!chrome.sidePanel?.setPanelBehavior) return;
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+const OPEN_TABS = "xwriterOpenTabs";
+
+async function configurePanel() {
+  if (!chrome.sidePanel?.setOptions) return;
+  await chrome.sidePanel.setOptions({ enabled: false });
+  if (chrome.sidePanel.setPanelBehavior) {
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false });
+  }
 }
 
-chrome.runtime.onInstalled.addListener(enableSidePanel);
-chrome.runtime.onStartup.addListener(enableSidePanel);
-enableSidePanel();
+async function openTabIds() {
+  const stored = await chrome.storage.session.get(OPEN_TABS);
+  return new Set(stored[OPEN_TABS] || []);
+}
+
+async function rememberTab(tabId) {
+  const ids = await openTabIds();
+  ids.add(tabId);
+  await chrome.storage.session.set({ [OPEN_TABS]: [...ids] });
+}
+
+async function forgetTab(tabId) {
+  const ids = await openTabIds();
+  if (!ids.delete(tabId)) return;
+  await chrome.storage.session.set({ [OPEN_TABS]: [...ids] });
+}
+
+async function setTabPanel(tabId, enabled) {
+  await chrome.sidePanel.setOptions({
+    tabId,
+    path: "sidepanel.html",
+    enabled,
+  });
+}
+
+chrome.runtime.onInstalled.addListener(configurePanel);
+chrome.runtime.onStartup.addListener(configurePanel);
+configurePanel();
+
+chrome.action.onClicked.addListener(async (tab) => {
+  if (!tab.id) return;
+  await rememberTab(tab.id);
+  await setTabPanel(tab.id, true);
+  await chrome.sidePanel.open({ tabId: tab.id });
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  const ids = await openTabIds();
+  try {
+    await setTabPanel(tabId, ids.has(tabId));
+  } catch {
+    /* The tab can close before the panel options are applied. */
+  }
+});
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  forgetTab(tabId);
+});
 
 async function activeTab() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
