@@ -327,7 +327,7 @@ if (!globalThis.__xwriter) {
     const style = document.createElement("style");
     style.id = "xwriter-style";
     style.textContent =
-      ".xwriter-focus{outline:2px solid #e0a15a !important;outline-offset:4px !important;border-radius:12px;}";
+      ".xwriter-focus{outline:2px solid #3ecf8e !important;outline-offset:4px !important;border-radius:12px;}";
     document.documentElement.appendChild(style);
   }
 
