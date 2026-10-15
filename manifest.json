@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "XWriter",
-  "version": "1.0.0",
-  "description": "Read the post open on X and write a reply or a new post from the side panel.",
+  "version": "1.1.0",
+  "description": "Write five replies to the open X post from a black-and-white side panel.",
   "minimum_chrome_version": "114",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
     "https://mobile.x.com/*",
-    "https://mobile.twitter.com/*"
+    "https://mobile.twitter.com/*",
+    "https://api.openai.com/*"
   ],
   "background": {
     "service_worker": "background.js"
