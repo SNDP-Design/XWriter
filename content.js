@@ -371,13 +371,21 @@ if (!globalThis.__xwriter) {
     selection.addRange(range);
   }
 
-  function typeInto(node, text) {
-    node.focus();
-    placeCaret(node);
-    const before = composerText(node);
-    document.execCommand("insertText", false, text);
-    if (composerText(node) !== before) return true;
+  function landed(before, after, text) {
+    const needle = text.replace(/^\n+/, "").trim();
+    if (!needle) return after !== before;
+    return after.split(needle).length > before.split(needle).length;
+  }
 
+  async function textLanded(node, before, text) {
+    for (let i = 0; i < 6; i += 1) {
+      if (landed(before, composerText(node), text)) return true;
+      await sleep(40);
+    }
+    return false;
+  }
+
+  function pasteInto(node, text) {
     const data = new DataTransfer();
     data.setData("text/plain", text);
     node.dispatchEvent(
@@ -387,7 +395,17 @@ if (!globalThis.__xwriter) {
         cancelable: true,
       })
     );
-    return composerText(node) !== before;
+  }
+
+  async function typeInto(node, text) {
+    node.focus();
+    placeCaret(node);
+    const before = composerText(node);
+    const commanded = document.execCommand("insertText", false, text);
+    if (commanded || (await textLanded(node, before, text))) return true;
+
+    pasteInto(node, text);
+    return textLanded(node, before, text);
   }
 
   async function waitFor(finder, attempts = 25) {
@@ -435,30 +453,38 @@ if (!globalThis.__xwriter) {
     throw new Error("The post composer did not open.");
   }
 
+  let inserting = false;
+
   async function insertDraft(text, mode) {
     const clean = (text || "").replace(/\r\n/g, "\n");
     if (!clean.trim()) return { ok: false, error: "Write a draft first." };
+    if (inserting) return { ok: true, message: "Added to the reply box." };
+    inserting = true;
 
-    const box = mode === "post" ? await ensurePostComposer() : await ensureReplyComposer();
-    const existing = composerText(box);
-    const payload = existing ? `\n\n${clean}` : clean;
-    box.scrollIntoView({ behavior: "smooth", block: "center" });
-    const typed = typeInto(box, payload);
-    if (!typed) {
+    try {
+      const box = mode === "post" ? await ensurePostComposer() : await ensureReplyComposer();
+      const existing = composerText(box);
+      const payload = existing ? `\n\n${clean}` : clean;
+      box.scrollIntoView({ behavior: "smooth", block: "center" });
+      const typed = await typeInto(box, payload);
+      if (!typed) {
+        return {
+          ok: false,
+          error: "Could not type into the composer. Click the reply box, then try again.",
+        };
+      }
+
       return {
-        ok: false,
-        error: "Could not type into the composer. Click the reply box, then try again.",
+        ok: true,
+        message: existing
+          ? "Added to the end of the composer."
+          : mode === "post"
+            ? "Added to the new post."
+            : "Added to the reply box.",
       };
+    } finally {
+      inserting = false;
     }
-
-    return {
-      ok: true,
-      message: existing
-        ? "Added to the end of the composer."
-        : mode === "post"
-          ? "Added to the new post."
-          : "Added to the reply box.",
-    };
   }
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
