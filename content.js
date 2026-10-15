@@ -1,4 +1,4 @@
-if (!globalThis.__xwriter) {
+{
   globalThis.__xwriter = true;
 
   const ARTICLE = 'article[data-testid="tweet"], article[role="article"]';
@@ -401,8 +401,15 @@ if (!globalThis.__xwriter) {
     node.focus();
     placeCaret(node);
     const before = composerText(node);
-    const commanded = document.execCommand("insertText", false, text);
-    if (commanded || (await textLanded(node, before, text))) return true;
+    const input = new InputEvent("beforeinput", {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      inputType: "insertText",
+      data: text,
+    });
+    node.dispatchEvent(input);
+    if (input.defaultPrevented || (await textLanded(node, before, text))) return true;
 
     pasteInto(node, text);
     return textLanded(node, before, text);
@@ -453,13 +460,11 @@ if (!globalThis.__xwriter) {
     throw new Error("The post composer did not open.");
   }
 
-  let inserting = false;
-
   async function insertDraft(text, mode) {
     const clean = (text || "").replace(/\r\n/g, "\n");
     if (!clean.trim()) return { ok: false, error: "Write a draft first." };
-    if (inserting) return { ok: true, message: "Added to the reply box." };
-    inserting = true;
+    if (globalThis.__xwriterInserting) return { ok: true, message: "Added to the reply box." };
+    globalThis.__xwriterInserting = true;
 
     try {
       const box = mode === "post" ? await ensurePostComposer() : await ensureReplyComposer();
@@ -483,11 +488,11 @@ if (!globalThis.__xwriter) {
             : "Added to the reply box.",
       };
     } finally {
-      inserting = false;
+      globalThis.__xwriterInserting = false;
     }
   }
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  function onMessage(message, _sender, sendResponse) {
     if (message?.type === "XWRITER_READ") {
       readPost()
         .then((post) => sendResponse({ ok: true, post }))
@@ -500,7 +505,7 @@ if (!globalThis.__xwriter) {
       return false;
     }
 
-    if (message?.type === "XWRITER_INSERT") {
+    if (message?.type === "XWRITER_INSERT_V2") {
       insertDraft(message.text, message.mode === "post" ? "post" : "reply")
         .then(sendResponse)
         .catch((error) => sendResponse({ ok: false, error: error?.message || "Could not insert the draft." }));
@@ -508,5 +513,11 @@ if (!globalThis.__xwriter) {
     }
 
     return false;
-  });
+  }
+
+  if (globalThis.__xwriterOnMessage) {
+    chrome.runtime.onMessage.removeListener(globalThis.__xwriterOnMessage);
+  }
+  globalThis.__xwriterOnMessage = onMessage;
+  chrome.runtime.onMessage.addListener(onMessage);
 }

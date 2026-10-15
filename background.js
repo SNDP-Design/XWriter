@@ -91,6 +91,20 @@ async function activeTab() {
 }
 
 async function deliver(tabId, message) {
+  if (message.type === "XWRITER_INSERT_V2") {
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ["content.js"],
+      });
+    } catch {
+      return {
+        ok: false,
+        error: "Refresh the X tab, then tap the reply again.",
+      };
+    }
+  }
+
   try {
     return await chrome.tabs.sendMessage(tabId, message);
   } catch {
@@ -140,7 +154,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
     if (message.type === "XWRITER_INSERT_ACTIVE") {
       const result = await deliver(tab.id, {
-        type: "XWRITER_INSERT",
+        type: "XWRITER_INSERT_V2",
         text: message.text || "",
         mode: message.mode === "post" ? "post" : "reply",
       });
