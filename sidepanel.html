@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>XWriter</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="top">
+        <div class="brand">
+          <span class="mark" aria-hidden="true"></span>
+          <div>
+            <h1>XWriter</h1>
+            <p id="pageLabel">Waiting for X</p>
+          </div>
+        </div>
+        <button id="readBtn" class="read-btn" type="button">Read</button>
+      </header>
+
+      <p id="banner" class="banner" hidden></p>
+
+      <section id="postCard" class="post" hidden>
+        <div class="kicker">
+          <span id="postKind">Post</span>
+          <button id="showBtn" class="text-btn" type="button">Show on page</button>
+        </div>
+        <div class="author">
+          <div id="avatar" class="avatar" aria-hidden="true"></div>
+          <div class="author-name">
+            <strong id="authorName"></strong>
+            <span id="authorHandle"></span>
+          </div>
+          <time id="postTime"></time>
+        </div>
+        <p id="replyingTo" class="replying" hidden></p>
+        <p id="postText" class="post-text"></p>
+        <ul id="mediaList" class="media" hidden></ul>
+        <blockquote id="quote" class="quote" hidden>
+          <div id="quoteAuthor" class="quote-author"></div>
+          <p id="quoteText"></p>
+        </blockquote>
+        <p id="cardPreview" class="card-preview" hidden></p>
+        <div id="thread" class="thread" hidden></div>
+      </section>
+
+      <section id="empty" class="empty">
+        <p class="empty-title">No post in view</p>
+        <p>Open a post on X, or scroll one to the middle of the timeline. XWriter reads that post here.</p>
+      </section>
+
+      <section class="writer" aria-label="Draft">
+        <div class="modes" role="tablist" aria-label="Draft type">
+          <button class="mode is-on" type="button" data-mode="reply" role="tab" aria-selected="true">
+            Reply
+          </button>
+          <button class="mode" type="button" data-mode="post" role="tab" aria-selected="false">
+            New post
+          </button>
+        </div>
+        <label id="draftLabel" class="draft-label" for="draft">Reply</label>
+        <textarea
+          id="draft"
+          rows="8"
+          spellcheck="true"
+          placeholder="Write a reply…"
+        ></textarea>
+        <div class="meter">
+          <div class="meter-bar" aria-hidden="true"><span id="meterFill"></span></div>
+          <p class="count-line">
+            <span id="count">0</span><span class="count-limit">/ 280</span>
+          </p>
+          <button id="fitBtn" class="text-btn" type="button" hidden>Fit 280</button>
+          <button id="clearBtn" class="text-btn" type="button" hidden>Clear</button>
+        </div>
+        <div class="actions">
+          <button id="copyBtn" class="btn ghost" type="button">Copy</button>
+          <button id="insertBtn" class="btn solid" type="button">Put reply on X</button>
+        </div>
+        <div class="starters">
+          <span>Openers</span>
+          <div id="starterRow"></div>
+        </div>
+        <label class="follow">
+          <input id="follow" type="checkbox" checked />
+          <span>Keep reading the post on screen</span>
+        </label>
+      </section>
+    </div>
+    <div id="toast" class="toast" role="status" hidden></div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

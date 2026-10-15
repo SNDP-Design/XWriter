@@ -1,0 +1,23 @@
+---
+description: Commit and push every XWriter change to GitHub
+alwaysApply: true
+---
+
+# GitHub sync
+
+Remote: https://github.com/SNDP-Design/XWriter.git
+Branch: `main`
+
+Whenever a request changes files in this project, commit those changes and push them to that repository before the task is finished.
+
+- Stage the project files for the change. Do not commit secrets (`.env`, credentials, tokens).
+- Write a 1–2 sentence commit message that says why the change was made.
+- Push to `origin` on `main`. Do not force-push.
+- Do not change git config, skip hooks, or amend a commit that has already been pushed.
+- If GitHub login or the push fails, say so. Do not claim the push succeeded.
+
+```bash
+git add -A
+git commit -m "Explain why this change was made."
+git push origin main
+```
