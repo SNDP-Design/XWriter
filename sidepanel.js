@@ -3,15 +3,15 @@ const MODEL = "gpt-4.1-mini";
 const KEY = "openaiApiKey";
 
 const SAMPLE_REPLIES = [
-  "The line people repeat is the one that can stand alone.",
-  "The remembered sentence is usually the one that needed no paragraph.",
-  "Which of your own lines do you now wish you had cut?",
-  "The quoted line is sometimes weaker than the one they skipped.",
-  "Write the sentence you would underline, then leave the rest out.",
+  "This point is clear and many people will feel the same.",
+  "You are right, and that small detail makes it hit harder.",
+  "What made you notice this and share it today?",
+  "I see it another way, but I get why you wrote this.",
+  "Short and true. That is the part that sticks with me.",
 ];
 
 const REPLY_RULES =
-  'Write exactly five replies to a post on X. Return JSON {"replies":[string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, and a concise witty line. Use the same language as the post. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a person.';
+  'Write exactly five replies to a post on X. Return JSON {"replies":[string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, and a concise witty line. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
 
 const els = {
   pageLabel: document.querySelector("#pageLabel"),
@@ -218,7 +218,7 @@ async function requestReplies(post, apiKey) {
   replies = await askForReplies(
     post,
     apiKey,
-    `Rewrite all five replies. Each one must be 10, 11, or 12 words.\n${report}`
+    `Rewrite all five replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
   );
   if (!withinWordLimit(replies)) {
     throw new Error("The replies were not 10 to 12 words. Tap New five to try again.");
