@@ -25,7 +25,6 @@ const els = {
   empty: document.querySelector("#empty"),
   emptyTitle: document.querySelector("#emptyTitle"),
   emptyText: document.querySelector("#emptyText"),
-  follow: document.querySelector("#follow"),
   toast: document.querySelector("#toast"),
 };
 
@@ -42,7 +41,6 @@ const state = {
 };
 
 let toastTimer = 0;
-let pollTimer = 0;
 let requestSerial = 0;
 
 function toast(message) {
@@ -109,12 +107,14 @@ function renderAnswers(replies) {
   els.answers.replaceChildren();
   hideEmpty();
   setStatus("");
-  els.pageLabel.textContent = "Five replies";
+  els.pageLabel.textContent = "Tap a reply";
 
   replies.forEach((text, index) => {
     const item = document.createElement("li");
-    item.className = "answer";
-    item.dataset.index = String(index);
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "answer";
+    card.dataset.index = String(index);
 
     const number = document.createElement("span");
     number.className = "answer-index";
@@ -123,23 +123,8 @@ function renderAnswers(replies) {
     const body = document.createElement("p");
     body.textContent = text;
 
-    const actions = document.createElement("div");
-    actions.className = "answer-actions";
-
-    const copy = document.createElement("button");
-    copy.type = "button";
-    copy.className = "btn ghost";
-    copy.dataset.action = "copy";
-    copy.textContent = "Copy";
-
-    const use = document.createElement("button");
-    use.type = "button";
-    use.className = "btn solid";
-    use.dataset.action = "use";
-    use.textContent = "Use";
-
-    actions.append(copy, use);
-    item.append(number, body, actions);
+    card.append(number, body);
+    item.append(card);
     els.answers.appendChild(item);
   });
 }
@@ -331,21 +316,6 @@ async function refresh({ force = false } = {}) {
   }
 }
 
-async function copyText(text) {
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const area = document.createElement("textarea");
-    area.value = text;
-    document.body.appendChild(area);
-    area.select();
-    document.execCommand("copy");
-    area.remove();
-  }
-  toast("Copied");
-}
-
 async function useReply(text) {
   if (!text) return;
   if (preview) {
@@ -404,19 +374,10 @@ async function clearKey() {
   toast("Key removed");
 }
 
-function schedulePoll() {
-  clearInterval(pollTimer);
-  if (!els.follow.checked) return;
-  pollTimer = setInterval(() => {
-    if (!document.hidden && !state.writing) refresh();
-  }, 2000);
-}
-
 async function init() {
-  const saved = await storageGet([KEY, "xwriter:follow"]);
+  const saved = await storageGet(KEY);
   state.apiKey = typeof saved[KEY] === "string" ? saved[KEY] : "";
   els.keyStatus.textContent = keyStatusText();
-  if (typeof saved["xwriter:follow"] === "boolean") els.follow.checked = saved["xwriter:follow"];
 
   els.settingsBtn.addEventListener("click", toggleSettings);
   els.saveKeyBtn.addEventListener("click", saveKey);
@@ -430,19 +391,14 @@ async function init() {
     refresh({ force: true });
   });
 
-  els.follow.addEventListener("change", () => {
-    storageSet({ "xwriter:follow": els.follow.checked });
-    schedulePoll();
-    if (els.follow.checked) refresh();
-  });
-
   els.answers.addEventListener("click", (event) => {
-    const button = event.target.closest("button");
-    if (!button) return;
-    const index = Number(button.closest(".answer")?.dataset.index);
-    const text = state.replies[index];
-    if (button.dataset.action === "copy") copyText(text);
-    if (button.dataset.action === "use") useReply(text);
+    const card = event.target.closest(".answer");
+    if (!card) return;
+    for (const node of els.answers.querySelectorAll(".answer.is-selected")) {
+      node.classList.remove("is-selected");
+    }
+    card.classList.add("is-selected");
+    useReply(state.replies[Number(card.dataset.index)]);
   });
 
   if (!preview && chrome.tabs?.onActivated) {
@@ -459,7 +415,6 @@ async function init() {
     if (!document.hidden) refresh();
   });
 
-  schedulePoll();
   refresh();
 }
 
