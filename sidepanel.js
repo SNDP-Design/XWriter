@@ -1,17 +1,21 @@
 const preview = !globalThis.chrome?.runtime?.sendMessage;
 const MODEL = "gpt-4.1-mini";
 const KEY = "openaiApiKey";
+const REPLY_COUNT = 8;
 
 const SAMPLE_REPLIES = [
   "This point is clear and many people will feel the same.",
   "You are right, and that small detail makes it hit harder.",
-  "What made you notice this and share it today?",
+  "What made you notice this and want to share it today?",
   "I see it another way, but I get why you wrote this.",
   "Short and true. That is the part that sticks with me.",
+  "I tried this last year and it worked better than expected.",
+  "More people should talk about this, because it really does matter.",
+  "Saving this post so I can come back and read it again.",
 ];
 
 const REPLY_RULES =
-  'Write exactly five replies to a post on X. Return JSON {"replies":[string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, and a concise witty line. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
+  'Write exactly eight replies to a post on X. Return JSON {"replies":[string, string, string, string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, a concise witty line, a short personal experience, a helpful tip or next step, and a warm supportive line. Make each reply different from the others. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
 
 const els = {
   pageLabel: document.querySelector("#pageLabel"),
@@ -153,7 +157,7 @@ function wordCount(text) {
 }
 
 function withinWordLimit(replies) {
-  return replies.length === 5 && replies.every((text) => {
+  return replies.length === REPLY_COUNT && replies.every((text) => {
     const count = wordCount(text);
     return count >= 10 && count <= 12;
   });
@@ -172,7 +176,7 @@ function readReplies(data) {
     .map((item) => (typeof item === "string" ? item : item?.text || ""))
     .map((text) => text.trim())
     .filter(Boolean)
-    .slice(0, 5);
+    .slice(0, REPLY_COUNT);
 }
 
 async function askForReplies(post, apiKey, correction) {
@@ -191,7 +195,7 @@ async function askForReplies(post, apiKey, correction) {
     body: JSON.stringify({
       model: MODEL,
       temperature: 0.7,
-      max_tokens: 500,
+      max_tokens: 800,
       response_format: { type: "json_object" },
       messages,
     }),
@@ -206,7 +210,7 @@ async function askForReplies(post, apiKey, correction) {
   }
 
   const replies = readReplies(data);
-  if (replies.length < 5) throw new Error("OpenAI did not return five replies.");
+  if (replies.length < REPLY_COUNT) throw new Error("OpenAI did not return eight replies.");
   return replies;
 }
 
@@ -218,17 +222,17 @@ async function requestReplies(post, apiKey) {
   replies = await askForReplies(
     post,
     apiKey,
-    `Rewrite all five replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
+    `Rewrite all eight replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
   );
   if (!withinWordLimit(replies)) {
-    throw new Error("The replies were not 10 to 12 words. Tap New five to try again.");
+    throw new Error("The replies were not 10 to 12 words. Tap New eight to try again.");
   }
   return replies;
 }
 
-async function writeFive(post, { force = false } = {}) {
+async function writeReplies(post, { force = false } = {}) {
   const signature = signatureFor(post);
-  const settled = state.replies.length === 5 || state.gaveUp || !hasText(post);
+  const settled = state.replies.length === REPLY_COUNT || state.gaveUp || !hasText(post);
   if (!force && signature === state.signature && settled) return;
 
   state.post = post;
@@ -255,7 +259,7 @@ async function writeFive(post, { force = false } = {}) {
     setStatus("");
     state.gaveUp = true;
     els.pageLabel.textContent = "Add an API key";
-    showEmpty("Add an OpenAI key", "Open Settings and paste your key to write five replies.");
+    showEmpty("Add an OpenAI key", "Open Settings and paste your key to write eight replies.");
     return;
   }
 
@@ -264,8 +268,8 @@ async function writeFive(post, { force = false } = {}) {
   els.refreshBtn.disabled = true;
   setBanner("");
   els.pageLabel.textContent = "Writing replies";
-  setStatus("Writing five replies, 10 to 12 words each…");
-  if (!state.replies.length) showEmpty("Writing five replies", "This takes a moment.");
+  setStatus("Writing eight replies, 10 to 12 words each…");
+  if (!state.replies.length) showEmpty("Writing eight replies", "This takes a moment.");
 
   try {
     const replies = preview ? SAMPLE_REPLIES : await requestReplies(post, state.apiKey);
@@ -279,7 +283,7 @@ async function writeFive(post, { force = false } = {}) {
     setStatus("");
     els.pageLabel.textContent = "Could not write replies";
     setBanner(error?.message || "Could not write replies.");
-    showEmpty("No replies yet", "Try New five, or check the key in Settings.");
+    showEmpty("No replies yet", "Try New eight, or check the key in Settings.");
   } finally {
     if (serial === requestSerial) {
       state.writing = false;
@@ -312,7 +316,7 @@ async function applyReadResult(result, { force = false } = {}) {
   }
 
   setBanner("");
-  await writeFive(result.post || null, { force });
+  await writeReplies(result.post || null, { force });
 }
 
 async function refresh({ force = false } = {}) {
@@ -390,7 +394,7 @@ async function saveKey() {
   toast("Key saved on this computer");
   if (state.post && hasText(state.post)) {
     state.signature = "";
-    writeFive(state.post, { force: true });
+    writeReplies(state.post, { force: true });
   }
 }
 
