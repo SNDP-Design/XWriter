@@ -96,11 +96,7 @@ button {
   width: 28px;
   height: 28px;
   flex: none;
-  border: 1px solid var(--brand);
-  border-radius: 8px;
-  background:
-    linear-gradient(135deg, transparent 46%, var(--brand) 46% 58%, transparent 58%),
-    var(--surface);
+  background: url("icons/icon48.png") center / contain no-repeat;
 }
 
 .header-actions,

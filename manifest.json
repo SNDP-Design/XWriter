@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XWriter",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Write six short replies to the open X post. The side panel stays on the tab where you opened it.",
   "minimum_chrome_version": "116",
   "permissions": ["sidePanel", "tabs", "storage", "scripting"],
