@@ -1,5 +1,5 @@
 const preview = !globalThis.chrome?.runtime?.sendMessage;
-const MODEL = "gpt-4.1-mini";
+const MODEL = "gpt-6-luna";
 const KEY = "openaiApiKey";
 const REPLY_COUNT = 6;
 
@@ -218,8 +218,9 @@ async function askForReplies(post, apiKey, correction) {
     },
     body: JSON.stringify({
       model: MODEL,
-      temperature: 0.7,
-      max_tokens: 800,
+      reasoning_effort: "low",
+      // Reasoning tokens count toward this cap, so it needs room beyond the six replies.
+      max_completion_tokens: 2000,
       response_format: { type: "json_object" },
       messages,
     }),
