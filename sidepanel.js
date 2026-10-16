@@ -1,7 +1,7 @@
 const preview = !globalThis.chrome?.runtime?.sendMessage;
 const MODEL = "gpt-4.1-mini";
 const KEY = "openaiApiKey";
-const REPLY_COUNT = 8;
+const REPLY_COUNT = 6;
 
 const SAMPLE_REPLIES = [
   "This point is clear and many people will feel the same.",
@@ -9,13 +9,11 @@ const SAMPLE_REPLIES = [
   "What made you notice this and want to share it today?",
   "I see it another way, but I get why you wrote this.",
   "Short and true. That is the part that sticks with me.",
-  "I tried this last year and it worked better than expected.",
   "More people should talk about this, because it really does matter.",
-  "Saving this post so I can come back and read it again.",
 ];
 
 const REPLY_RULES =
-  'Write exactly eight replies to a post on X. Return JSON {"replies":[string, string, string, string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, a concise witty line, a short personal experience, a helpful tip or next step, and a warm supportive line. Make each reply different from the others. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
+  'Write exactly six replies to a post on X. Return JSON {"replies":[string, string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, a concise witty line, and a warm supportive line. Make each reply different from the others. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
 
 const els = {
   pageLabel: document.querySelector("#pageLabel"),
@@ -236,7 +234,7 @@ async function askForReplies(post, apiKey, correction) {
   }
 
   const replies = readReplies(data);
-  if (replies.length < REPLY_COUNT) throw new Error("OpenAI did not return eight replies.");
+  if (replies.length < REPLY_COUNT) throw new Error("OpenAI did not return six replies.");
   return replies;
 }
 
@@ -251,10 +249,10 @@ async function requestReplies(post, apiKey, onStep = () => {}) {
   replies = await askForReplies(
     post,
     apiKey,
-    `Rewrite all eight replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
+    `Rewrite all six replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
   );
   if (!withinWordLimit(replies)) {
-    throw new Error("The replies were not 10 to 12 words. Tap New eight to try again.");
+    throw new Error("The replies were not 10 to 12 words. Tap New six to try again.");
   }
   return replies;
 }
@@ -288,7 +286,7 @@ async function writeReplies(post, { force = false } = {}) {
     setStatus("");
     state.gaveUp = true;
     els.pageLabel.textContent = "Add an API key";
-    showEmpty("Add an OpenAI key", "Open Settings and paste your key to write eight replies.");
+    showEmpty("Add an OpenAI key", "Open Settings and paste your key to write six replies.");
     return;
   }
 
@@ -302,13 +300,13 @@ async function writeReplies(post, { force = false } = {}) {
   els.answers.replaceChildren();
   state.replies = [];
   els.pageLabel.textContent = rewriting ? "Rewriting replies" : "Writing replies";
-  showProgress(rewriting ? "Rewriting eight replies" : "Writing eight replies");
+  showProgress(rewriting ? "Rewriting six replies" : "Writing six replies");
   setProgress("Reading the post…", 10);
 
   const onStep = (step) => {
     if (serial !== requestSerial) return;
     if (step === "write") {
-      setProgress("Writing eight new replies in plain English…", 70, { waiting: true });
+      setProgress("Writing six new replies in plain English…", 70, { waiting: true });
     } else if (step === "check") {
       setProgress("Checking each reply is 10 to 12 words…", 80);
     } else if (step === "fix") {
@@ -337,7 +335,7 @@ async function writeReplies(post, { force = false } = {}) {
     setStatus("");
     els.pageLabel.textContent = "Could not write replies";
     setBanner(error?.message || "Could not write replies.");
-    showEmpty("No replies yet", "Try New eight, or check the key in Settings.");
+    showEmpty("No replies yet", "Try New six, or check the key in Settings.");
   } finally {
     if (serial === requestSerial) {
       state.writing = false;
