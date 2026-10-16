@@ -1,4 +1,4 @@
-"""Draw the XWriter toolbar icons: a Supabase-green tile with a dark X and a text cursor."""
+"""Draw the XWriter toolbar icons: a Supabase-green tile with a dark X."""
 
 import math
 import struct
@@ -31,11 +31,9 @@ def shade(x, y):
         return None, 0.0
 
     stroke = 0.075
-    if segment_distance(x, y, 0.22, 0.25, 0.54, 0.71) <= stroke:
+    if segment_distance(x, y, 0.31, 0.27, 0.69, 0.73) <= stroke:
         return INK, 1.0
-    if segment_distance(x, y, 0.54, 0.25, 0.22, 0.71) <= stroke:
-        return INK, 1.0
-    if in_rounded_rect(x, y, 0.66, 0.68, 0.84, 0.78, 0.04):
+    if segment_distance(x, y, 0.69, 0.27, 0.31, 0.73) <= stroke:
         return INK, 1.0
     return GREEN, 1.0
 
