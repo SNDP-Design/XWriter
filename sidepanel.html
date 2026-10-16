@@ -38,6 +38,15 @@
       <p id="banner" class="banner" hidden></p>
       <p id="status" class="status" hidden></p>
 
+      <section id="progress" class="progress" role="status" aria-live="polite" hidden>
+        <div class="progress-head">
+          <span class="spinner" aria-hidden="true"></span>
+          <p id="progressTitle" class="progress-title">Writing eight replies</p>
+        </div>
+        <p id="progressText" class="hint">Reading the post…</p>
+        <div class="progress-track" aria-hidden="true"><span id="progressBar" class="progress-bar"></span></div>
+      </section>
+
       <ol id="answers" class="answers"></ol>
 
       <section id="empty" class="empty">

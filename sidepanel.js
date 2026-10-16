@@ -29,6 +29,10 @@ const els = {
   banner: document.querySelector("#banner"),
   status: document.querySelector("#status"),
   answers: document.querySelector("#answers"),
+  progress: document.querySelector("#progress"),
+  progressTitle: document.querySelector("#progressTitle"),
+  progressText: document.querySelector("#progressText"),
+  progressBar: document.querySelector("#progressBar"),
   empty: document.querySelector("#empty"),
   emptyTitle: document.querySelector("#emptyTitle"),
   emptyText: document.querySelector("#emptyText"),
@@ -69,7 +73,28 @@ function setBanner(message) {
   els.banner.textContent = message || "";
 }
 
+function showProgress(title) {
+  els.progressTitle.textContent = title;
+  els.progressBar.classList.remove("is-waiting");
+  els.progressBar.style.width = "0%";
+  els.progress.hidden = false;
+}
+
+function setProgress(text, percent, { waiting = false } = {}) {
+  els.progressText.textContent = text;
+  els.progressBar.classList.toggle("is-waiting", waiting);
+  // Let the bar paint at its old width first so the transition runs.
+  requestAnimationFrame(() => {
+    els.progressBar.style.width = `${percent}%`;
+  });
+}
+
+function hideProgress() {
+  els.progress.hidden = true;
+}
+
 function showEmpty(title, text) {
+  hideProgress();
   els.empty.hidden = false;
   els.emptyTitle.textContent = title;
   els.emptyText.textContent = text;
@@ -113,6 +138,7 @@ function renderAnswers(replies) {
   state.replies = replies;
   els.answers.replaceChildren();
   hideEmpty();
+  hideProgress();
   setStatus("");
   els.pageLabel.textContent = "Tap a reply";
 
@@ -214,10 +240,13 @@ async function askForReplies(post, apiKey, correction) {
   return replies;
 }
 
-async function requestReplies(post, apiKey) {
+async function requestReplies(post, apiKey, onStep = () => {}) {
+  onStep("write");
   let replies = await askForReplies(post, apiKey);
+  onStep("check");
   if (withinWordLimit(replies)) return replies;
 
+  onStep("fix");
   const report = replies.map((text) => `${wordCount(text)} words: ${text}`).join("\n");
   replies = await askForReplies(
     post,
@@ -264,15 +293,39 @@ async function writeReplies(post, { force = false } = {}) {
   }
 
   const serial = ++requestSerial;
+  const rewriting = state.replies.length > 0;
   state.writing = true;
   els.refreshBtn.disabled = true;
   setBanner("");
-  els.pageLabel.textContent = "Writing replies";
-  setStatus("Writing eight replies, 10 to 12 words each…");
-  if (!state.replies.length) showEmpty("Writing eight replies", "This takes a moment.");
+  setStatus("");
+  hideEmpty();
+  els.answers.replaceChildren();
+  state.replies = [];
+  els.pageLabel.textContent = rewriting ? "Rewriting replies" : "Writing replies";
+  showProgress(rewriting ? "Rewriting eight replies" : "Writing eight replies");
+  setProgress("Reading the post…", 10);
+
+  const onStep = (step) => {
+    if (serial !== requestSerial) return;
+    if (step === "write") {
+      setProgress("Writing eight new replies in plain English…", 70, { waiting: true });
+    } else if (step === "check") {
+      setProgress("Checking each reply is 10 to 12 words…", 80);
+    } else if (step === "fix") {
+      setProgress("Fixing replies that were too short or too long…", 92, { waiting: true });
+    }
+  };
 
   try {
-    const replies = preview ? SAMPLE_REPLIES : await requestReplies(post, state.apiKey);
+    let replies;
+    if (preview) {
+      onStep("write");
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      onStep("check");
+      replies = SAMPLE_REPLIES;
+    } else {
+      replies = await requestReplies(post, state.apiKey, onStep);
+    }
     if (serial !== requestSerial) return;
     renderAnswers(replies);
   } catch (error) {
@@ -280,6 +333,7 @@ async function writeReplies(post, { force = false } = {}) {
     state.gaveUp = true;
     state.replies = [];
     els.answers.replaceChildren();
+    hideProgress();
     setStatus("");
     els.pageLabel.textContent = "Could not write replies";
     setBanner(error?.message || "Could not write replies.");

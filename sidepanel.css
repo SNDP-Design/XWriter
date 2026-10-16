@@ -225,6 +225,78 @@ input {
   overflow-wrap: anywhere;
 }
 
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--brand);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.progress-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-title {
+  margin: 0;
+  font-weight: 650;
+}
+
+.progress .hint {
+  margin: 0;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--brand);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.progress-track {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.progress-bar {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  transition: width 0.4s ease;
+}
+
+.progress-bar.is-waiting {
+  transition: width 8s cubic-bezier(0.1, 0.6, 0.3, 1);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+
+  .progress-bar,
+  .progress-bar.is-waiting {
+    transition: none;
+  }
+}
+
 .empty-title {
   margin: 0 0 6px;
   font-weight: 650;
