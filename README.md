@@ -6,9 +6,8 @@ It runs in Chrome's side panel, uses your own OpenAI API key, and only opens on 
 
 ## Features
 
-- **Sounds like a person, not an AI.** Every reply reacts to a specific detail in the post. Lengths vary from a few words to about 20, in plain everyday English. Fragments, lowercase starts, and missing full stops are allowed.
-- **Writes in your voice.** Paste a few replies you have written under **Your voice** in Settings and XWriter copies your tone, length, casing, and punctuation.
-- **Filters out AI phrases.** XWriter writes about ten candidates, throws out any with typical AI tells (em dashes, hashtags, "resonates", "Great point", "It's not X, it's Y", and similar), asks for replacements if too many fail, and keeps the six most different.
+- **Six replies, six tones.** Every set has a sharp observation, an agreement that adds a point, a genuine question, a respectful disagreement, a witty line, and a warm supportive line.
+- **Short and plain.** Each reply is 10 to 12 words in simple everyday English, with no hashtags. If the model misses the length, XWriter asks it once more to fix the replies.
 - **Reads the right post.** XWriter picks the post you selected, the post in an open reply dialog, the post on a post's own page, or the post nearest the middle of the screen. It also reads quoted posts and up to two earlier posts in a thread for context.
 - **One tap to reply.** Tapping a card opens the reply box if needed and types the reply in. Nothing is posted until you press Reply on X.
 - **Stays on its tab.** The side panel only shows on tabs where you opened it, so it does not follow you around.
@@ -32,16 +31,15 @@ XWriter is not in the Chrome Web Store. Load it from this repository:
 1. Open a post on [x.com](https://x.com).
 2. Click the XWriter icon, or press **Cmd+Shift+Y** on Mac (**Ctrl+Shift+Y** on Windows and Linux).
 3. The first time, click **Settings**, paste your OpenAI API key, and click **Save key**.
-4. Optional but recommended: under **Your voice**, paste 5 to 10 replies you have written on X, one per line, and click **Save voice**.
-5. Wait a few seconds for six replies to appear.
-6. Tap a reply to put it in X's reply box, edit it if you want, then post it on X.
+4. Wait a few seconds for six replies to appear.
+5. Tap a reply to put it in X's reply box, edit it if you want, then post it on X.
 
 Scroll to another post or open a new one and XWriter writes replies for that post.
 
 ## Privacy
 
-- Your OpenAI API key and your voice examples are saved in Chrome's local extension storage on your computer. They are sent only to OpenAI.
-- The post text, author handle, image descriptions, link preview text, any quoted post, and up to two earlier thread posts are sent to OpenAI to write the replies.
+- Your OpenAI API key is saved in Chrome's local extension storage on your computer. It is sent only to OpenAI.
+- The post text, author handle, any quoted post, and up to two earlier thread posts are sent to OpenAI to write the replies.
 - XWriter has no server of its own and collects no analytics.
 
 ## Project structure
@@ -67,4 +65,4 @@ To redraw the icons:
 python3 tools/make_icons.py
 ```
 
-The model, reply rules, and AI-phrase filters are set at the top of `sidepanel.js` (`MODEL`, `REPLY_RULES`, `BANNED_OPENERS`, and `BANNED_PHRASES`).
+The model and reply rules are set at the top of `sidepanel.js` (`MODEL` and `REPLY_RULES`).

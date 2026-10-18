@@ -1,91 +1,19 @@
 const preview = !globalThis.chrome?.runtime?.sendMessage;
 const MODEL = "gpt-6-luna";
 const KEY = "openaiApiKey";
-const VOICE_KEY = "userVoice";
 const REPLY_COUNT = 6;
-const CANDIDATE_COUNT = 10;
-const MAX_WORDS = 22;
-const MAX_VOICE_CHARS = 2500;
 
 const SAMPLE_REPLIES = [
-  "ok so what is the hard part then",
-  "hitting post when three people from work follow you. that's the hard part",
-  "felt this",
-  "disagree a little, I've deleted way more drafts over the take than the wording",
-  "Rewriting the first line nine times before anyone sees it",
-  "the opinion takes 5 minutes, the courage takes a week",
+  "This point is clear and many people will feel the same.",
+  "You are right, and that small detail makes it hit harder.",
+  "What made you notice this and want to share it today?",
+  "I see it another way, but I get why you wrote this.",
+  "Short and true. That is the part that sticks with me.",
+  "More people should talk about this, because it really does matter.",
 ];
 
-const REPLY_RULES = `You write replies to a post on X for the user. Each reply should read like a real person typed it on their phone in a few seconds.
-
-Return JSON {"replies": [string, ...]} with exactly ${CANDIDATE_COUNT} replies.
-
-What to say:
-- Every reply reacts to one specific thing in the post: a word, a claim, a number, a name, or what is in the photo or link. A reply that would fit under any other post is wrong.
-- Mix the angles. For example: a quick joke, pushing back on one part, a real question you want answered, a short personal take or experience, an extra fact or example, plain agreement with a reason. Do not label the angles and do not force every one.
-- Have a point of view. Do not praise the post and do not sum it up.
-- Every reply must say something different from the others.
-
-How to write:
-- Plain everyday English, the way people text. Short common words.
-- Vary the length. At least two replies under 6 words and at least two between 14 and 20 words. Nothing over 20 words.
-- Fragments are fine. Use contractions. Some replies can start in lowercase. Some can leave off the final period.
-- At most one emoji across all replies, unless the user's own replies use more.
-- If the user's own replies are given, match their tone, length, casing, punctuation, and emoji use. Do not copy their lines or their topics.
-
-Never:
-- Hashtags, em dashes, en dashes, or semicolons.
-- Lists of three things.
-- "It's not X, it's Y" or "X isn't just Y" sentences.
-- Opening with praise, or with "Honestly", "Absolutely", "Great point", "Love this", "So true", or "This is so true".
-- These words and phrases: resonate, game changer, delve, testament, crucial, journey, navigate, landscape, elevate, unpack, powerful reminder, couldn't agree more, well said, nailed it, spot on, hits different, 100%.
-- Repeating or restating the post.
-- Questions only meant to get engagement, like "What do you think?" or "Who else agrees?"`;
-
-const BANNED_OPENERS = [
-  "honestly",
-  "absolutely",
-  "great point",
-  "great post",
-  "love this",
-  "so true",
-  "this is so true",
-  "this is spot on",
-  "wow",
-  "yes!",
-  "this!",
-];
-
-const BANNED_PHRASES = [
-  "resonate",
-  "game changer",
-  "game-changer",
-  "delve",
-  "testament",
-  "crucial",
-  "journey",
-  "navigate",
-  "navigating",
-  "landscape",
-  "elevate",
-  "unpack",
-  "powerful reminder",
-  "couldn't agree more",
-  "could not agree more",
-  "well said",
-  "nailed it",
-  "spot on",
-  "hits different",
-  "100%",
-  "what do you think",
-  "who else",
-  "thoughts?",
-  "food for thought",
-  "this is everything",
-  "so much this",
-  "the power of",
-  "at the end of the day",
-];
+const REPLY_RULES =
+  'Write exactly six replies to a post on X. Return JSON {"replies":[string, string, string, string, string, string]} in this order: a sharp observation, a short agreement that adds a new point, a genuine question, a respectful disagreement, a concise witty line, and a warm supportive line. Make each reply different from the others. Write every reply in plain simple English. Use short everyday words. Do not use hard words, slang that is hard to follow, fancy phrases, or long sentences. Every reply must be 10, 11, or 12 words. Count the words and do not return a reply outside that range. No hashtags. Do not repeat the post. Sound like a real person talking.';
 
 const els = {
   pageLabel: document.querySelector("#pageLabel"),
@@ -96,10 +24,6 @@ const els = {
   keyStatus: document.querySelector("#keyStatus"),
   saveKeyBtn: document.querySelector("#saveKeyBtn"),
   clearKeyBtn: document.querySelector("#clearKeyBtn"),
-  voice: document.querySelector("#voice"),
-  voiceStatus: document.querySelector("#voiceStatus"),
-  saveVoiceBtn: document.querySelector("#saveVoiceBtn"),
-  clearVoiceBtn: document.querySelector("#clearVoiceBtn"),
   banner: document.querySelector("#banner"),
   status: document.querySelector("#status"),
   answers: document.querySelector("#answers"),
@@ -119,7 +43,6 @@ const state = {
   gaveUp: false,
   replies: [],
   apiKey: "",
-  voice: "",
   onX: false,
   refreshing: false,
   writing: false,
@@ -209,12 +132,6 @@ function keyStatusText() {
   return state.apiKey ? "A key is saved on this computer." : "Paste a key, then save it.";
 }
 
-function voiceStatusText() {
-  if (!state.voice) return "Replies will copy the way you write.";
-  const lines = state.voice.split("\n").filter((line) => line.trim()).length;
-  return `${lines} example ${lines === 1 ? "reply" : "replies"} saved. Replies will copy your style.`;
-}
-
 function renderAnswers(replies) {
   state.replies = replies;
   els.answers.replaceChildren();
@@ -245,10 +162,6 @@ function postBrief(post) {
     handle: post.handle || "",
     text: post.text || "",
     replyingTo: post.replyingTo || [],
-    photos: (post.photos || []).map((photo) => photo.alt).filter((alt) => alt && alt !== "Photo"),
-    hasPhoto: (post.photos || []).length > 0,
-    hasVideo: !!post.hasVideo,
-    link: post.card || "",
     quoted: post.quoted
       ? {
           author: post.quoted.name || "",
@@ -267,83 +180,11 @@ function wordCount(text) {
   return text.trim().split(/\s+/).filter(Boolean).length;
 }
 
-function cleanReply(text) {
-  return text
-    .replace(/\s+/g, " ")
-    .replace(/^["'“”‘’]+|["'“”‘’]+$/g, "")
-    .trim();
-}
-
-function problemWith(text) {
-  const lower = text.toLowerCase();
-  const words = wordCount(text);
-  if (words < 1) return "empty";
-  if (words > MAX_WORDS) return "too long";
-  if (/[—–]/.test(text)) return "uses a long dash";
-  if (text.includes(";")) return "uses a semicolon";
-  if (/(^|\s)#[\p{L}\d_]/u.test(text)) return "uses a hashtag";
-  const opener = BANNED_OPENERS.find((start) => lower.startsWith(start));
-  if (opener) return `opens with "${opener}"`;
-  const phrase = BANNED_PHRASES.find((item) => lower.includes(item));
-  if (phrase) return `uses "${phrase}"`;
-  if (
-    /\b(it'?s|this is|that'?s|it was) not\b[^.!?]{1,40}?,\s*(it'?s|this is|that'?s|it was)\b/i.test(text) ||
-    /\b(isn'?t|is not|wasn'?t|was not) (just|only|merely) /i.test(text)
-  ) {
-    return `uses an "it's not X, it's Y" sentence`;
-  }
-  return "";
-}
-
-function review(replies) {
-  const good = [];
-  const rejected = [];
-  const seen = new Set();
-  for (const raw of replies) {
-    const text = cleanReply(raw);
-    const key = text.toLowerCase();
-    if (!text || seen.has(key)) continue;
-    seen.add(key);
-    const problem = problemWith(text);
-    if (problem) rejected.push({ text, problem });
-    else good.push(text);
-  }
-  return { good, rejected };
-}
-
-function wordSet(text) {
-  return new Set(
-    text
-      .toLowerCase()
-      .replace(/[^\p{L}\d\s']/gu, " ")
-      .split(/\s+/)
-      .filter((word) => word.length > 2)
-  );
-}
-
-function similarity(a, b) {
-  if (!a.size || !b.size) return 0;
-  let shared = 0;
-  for (const word of a) if (b.has(word)) shared += 1;
-  return shared / (a.size + b.size - shared);
-}
-
-function pickDistinct(replies, count) {
-  const pool = replies.map((text) => ({ text, words: wordSet(text) }));
-  const chosen = pool.splice(0, 1);
-  while (chosen.length < count && pool.length) {
-    let bestIndex = 0;
-    let bestScore = Infinity;
-    pool.forEach((item, index) => {
-      const score = Math.max(...chosen.map((pick) => similarity(item.words, pick.words)));
-      if (score < bestScore) {
-        bestScore = score;
-        bestIndex = index;
-      }
-    });
-    chosen.push(...pool.splice(bestIndex, 1));
-  }
-  return chosen.map((item) => item.text);
+function withinWordLimit(replies) {
+  return replies.length === REPLY_COUNT && replies.every((text) => {
+    const count = wordCount(text);
+    return count >= 10 && count <= 12;
+  });
 }
 
 function readReplies(data) {
@@ -358,18 +199,15 @@ function readReplies(data) {
   return (parsed.replies || parsed.comments || parsed.answers || [])
     .map((item) => (typeof item === "string" ? item : item?.text || ""))
     .map((text) => text.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(0, REPLY_COUNT);
 }
 
-async function askForReplies(post, apiKey, voice, correction) {
-  const messages = [{ role: "system", content: REPLY_RULES }];
-  if (voice) {
-    messages.push({
-      role: "user",
-      content: `Replies I have written on X, one per line. Write the way I write:\n${voice.slice(0, MAX_VOICE_CHARS)}`,
-    });
-  }
-  messages.push({ role: "user", content: `The post to reply to:\n${JSON.stringify(postBrief(post))}` });
+async function askForReplies(post, apiKey, correction) {
+  const messages = [
+    { role: "system", content: REPLY_RULES },
+    { role: "user", content: JSON.stringify(postBrief(post)) },
+  ];
   if (correction) messages.push({ role: "user", content: correction });
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -382,7 +220,7 @@ async function askForReplies(post, apiKey, voice, correction) {
       model: MODEL,
       reasoning_effort: "low",
       // Reasoning tokens count toward this cap, so it needs room beyond the six replies.
-      max_completion_tokens: 3000,
+      max_completion_tokens: 2000,
       response_format: { type: "json_object" },
       messages,
     }),
@@ -396,35 +234,33 @@ async function askForReplies(post, apiKey, voice, correction) {
     throw new Error(data?.error?.message || "OpenAI could not write the replies.");
   }
 
-  return readReplies(data);
+  const replies = readReplies(data);
+  if (replies.length < REPLY_COUNT) throw new Error("OpenAI did not return six replies.");
+  return replies;
 }
 
-async function requestReplies(post, apiKey, voice, onStep = () => {}) {
+async function requestReplies(post, apiKey, onStep = () => {}) {
   onStep("write");
-  const first = review(await askForReplies(post, apiKey, voice));
+  let replies = await askForReplies(post, apiKey);
   onStep("check");
-  let good = first.good;
+  if (withinWordLimit(replies)) return replies;
 
-  if (good.length < REPLY_COUNT) {
-    onStep("fix");
-    const report = first.rejected.map((item) => `- "${item.text}" (${item.problem})`).join("\n");
-    const correction = report
-      ? `These replies broke the rules and were thrown out:\n${report}\nWrite ${CANDIDATE_COUNT} new replies to the same post. Follow every rule.`
-      : `You returned too few replies. Write ${CANDIDATE_COUNT} new replies to the same post. Follow every rule.`;
-    const second = review(await askForReplies(post, apiKey, voice, correction));
-    const known = new Set(good.map((text) => text.toLowerCase()));
-    good = [...good, ...second.good.filter((text) => !known.has(text.toLowerCase()))];
+  onStep("fix");
+  const report = replies.map((text) => `${wordCount(text)} words: ${text}`).join("\n");
+  replies = await askForReplies(
+    post,
+    apiKey,
+    `Rewrite all six replies in plain simple English. Use short everyday words. Each one must be 10, 11, or 12 words.\n${report}`
+  );
+  if (!withinWordLimit(replies)) {
+    throw new Error("The replies were not 10 to 12 words. Tap New six to try again.");
   }
-
-  if (!good.length) {
-    throw new Error("Every reply sounded too much like AI. Tap New six to try again.");
-  }
-  return pickDistinct(good, REPLY_COUNT);
+  return replies;
 }
 
 async function writeReplies(post, { force = false } = {}) {
   const signature = signatureFor(post);
-  const settled = state.replies.length > 0 || state.gaveUp || !hasText(post);
+  const settled = state.replies.length === REPLY_COUNT || state.gaveUp || !hasText(post);
   if (!force && signature === state.signature && settled) return;
 
   state.post = post;
@@ -471,15 +307,11 @@ async function writeReplies(post, { force = false } = {}) {
   const onStep = (step) => {
     if (serial !== requestSerial) return;
     if (step === "write") {
-      setProgress(
-        state.voice ? "Writing replies in your voice…" : "Writing replies…",
-        70,
-        { waiting: true }
-      );
+      setProgress("Writing six new replies in plain English…", 70, { waiting: true });
     } else if (step === "check") {
-      setProgress("Throwing out replies that sound like AI…", 80);
+      setProgress("Checking each reply is 10 to 12 words…", 80);
     } else if (step === "fix") {
-      setProgress("Replacing the ones that sounded fake…", 92, { waiting: true });
+      setProgress("Fixing replies that were too short or too long…", 92, { waiting: true });
     }
   };
 
@@ -491,7 +323,7 @@ async function writeReplies(post, { force = false } = {}) {
       onStep("check");
       replies = SAMPLE_REPLIES;
     } else {
-      replies = await requestReplies(post, state.apiKey, state.voice, onStep);
+      replies = await requestReplies(post, state.apiKey, onStep);
     }
     if (serial !== requestSerial) return;
     renderAnswers(replies);
@@ -613,7 +445,10 @@ async function saveKey() {
   els.apiKey.value = "";
   els.keyStatus.textContent = keyStatusText();
   toast("Key saved on this computer");
-  rewriteCurrentPost();
+  if (state.post && hasText(state.post)) {
+    state.signature = "";
+    writeReplies(state.post, { force: true });
+  }
 }
 
 async function clearKey() {
@@ -624,52 +459,14 @@ async function clearKey() {
   toast("Key removed");
 }
 
-function rewriteCurrentPost() {
-  if (state.apiKey && state.post && hasText(state.post)) {
-    state.signature = "";
-    writeReplies(state.post, { force: true });
-  }
-}
-
-async function saveVoice() {
-  const value = els.voice.value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join("\n");
-  if (!value) {
-    toast("Paste a few of your replies first");
-    return;
-  }
-  state.voice = value;
-  els.voice.value = value;
-  await storageSet({ [VOICE_KEY]: value });
-  els.voiceStatus.textContent = voiceStatusText();
-  toast("Voice saved");
-  rewriteCurrentPost();
-}
-
-async function clearVoice() {
-  state.voice = "";
-  els.voice.value = "";
-  await storageRemove(VOICE_KEY);
-  els.voiceStatus.textContent = voiceStatusText();
-  toast("Voice removed");
-}
-
 async function init() {
-  const saved = await storageGet([KEY, VOICE_KEY]);
+  const saved = await storageGet(KEY);
   state.apiKey = typeof saved[KEY] === "string" ? saved[KEY] : "";
-  state.voice = typeof saved[VOICE_KEY] === "string" ? saved[VOICE_KEY] : "";
   els.keyStatus.textContent = keyStatusText();
-  els.voice.value = state.voice;
-  els.voiceStatus.textContent = voiceStatusText();
 
   els.settingsBtn.addEventListener("click", toggleSettings);
   els.saveKeyBtn.addEventListener("click", saveKey);
   els.clearKeyBtn.addEventListener("click", clearKey);
-  els.saveVoiceBtn.addEventListener("click", saveVoice);
-  els.clearVoiceBtn.addEventListener("click", clearVoice);
   els.apiKey.addEventListener("keydown", (event) => {
     if (event.key === "Enter") saveKey();
   });
