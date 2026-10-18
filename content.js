@@ -308,18 +308,19 @@
   }
 
   async function readPost() {
-    const located = locate();
-    if (!located.root) {
+    const id = statusIdFromPath();
+    const root = id ? await waitFor(() => articleForStatus(id), 20) : null;
+    if (!root) {
       mark(null);
       return null;
     }
     try {
-      await expandShowMore(located.root);
+      await expandShowMore(root);
     } catch {
       /* Reading the collapsed text is still useful. */
     }
-    mark(located.root);
-    return extract(located.root, located.source);
+    mark(root);
+    return extract(root, "permalink");
   }
 
   function ensureHighlightStyle() {

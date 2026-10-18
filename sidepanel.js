@@ -270,8 +270,11 @@ async function writeReplies(post, { force = false } = {}) {
   if (!post) {
     setBanner("");
     setStatus("");
-    els.pageLabel.textContent = state.onX ? "No text post in view" : "Not on X";
-    showEmpty("No replies yet", state.onX ? "Open a text post on X." : "Open x.com to write replies.");
+    els.pageLabel.textContent = state.onX ? "Post not found" : "Not on X";
+    showEmpty(
+      "No replies yet",
+      state.onX ? "Could not find the post on this page. Refresh the tab, then tap New six." : "Open x.com to write replies."
+    );
     return;
   }
 
@@ -360,6 +363,20 @@ async function applyReadResult(result, { force = false } = {}) {
     els.pageLabel.textContent = "Not on X";
     setBanner("Open x.com to write replies.");
     showEmpty("Not on X", "Open a text post, then come back to this panel.");
+    return;
+  }
+
+  if (result.onPost === false) {
+    requestSerial += 1;
+    state.writing = false;
+    els.refreshBtn.disabled = false;
+    state.post = null;
+    state.signature = "off-post";
+    state.gaveUp = false;
+    setBanner("");
+    setStatus("");
+    els.pageLabel.textContent = "Open a single post";
+    showEmpty("No replies yet", "Click a post on X to open its own page. Replies are written there.");
     return;
   }
 

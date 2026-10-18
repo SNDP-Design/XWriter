@@ -14,6 +14,14 @@ function isXUrl(url) {
   }
 }
 
+function isPostUrl(url) {
+  try {
+    return /\/status\/\d+/.test(new URL(url).pathname);
+  } catch {
+    return false;
+  }
+}
+
 const OPEN_TABS = "xwriterOpenTabs";
 const openTabs = new Set();
 
@@ -162,10 +170,15 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     }
 
     if (message.type === "XWRITER_READ_ACTIVE") {
+      if (!isPostUrl(tab.url)) {
+        sendResponse({ ok: true, onX: true, onPost: false, url: tab.url, title: tab.title || "" });
+        return;
+      }
       const result = await deliver(tab.id, { type: "XWRITER_READ" });
       sendResponse({
         ok: result?.ok !== false,
         onX: true,
+        onPost: true,
         url: tab.url,
         title: tab.title || "",
         post: result?.post || null,
