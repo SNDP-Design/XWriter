@@ -33,6 +33,14 @@
           <button id="clearKeyBtn" class="btn ghost" type="button">Remove</button>
         </div>
         <p class="hint">The key stays on this computer. It is sent only to OpenAI to write the six replies.</p>
+
+        <label for="voice" class="section-label">Your voice</label>
+        <textarea id="voice" rows="7" spellcheck="false" placeholder="Paste 5 to 10 replies you wrote on X, one per line."></textarea>
+        <p id="voiceStatus" class="hint">Replies will copy the way you write.</p>
+        <div class="settings-actions">
+          <button id="saveVoiceBtn" class="btn solid" type="button">Save voice</button>
+          <button id="clearVoiceBtn" class="btn ghost" type="button">Remove</button>
+        </div>
       </section>
 
       <p id="banner" class="banner" hidden></p>

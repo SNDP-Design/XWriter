@@ -32,7 +32,8 @@ body {
 }
 
 button,
-input {
+input,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -136,7 +137,8 @@ button {
 
 .btn:focus-visible,
 .answer:focus-visible,
-input:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
@@ -170,12 +172,22 @@ input:focus-visible {
   text-transform: uppercase;
 }
 
-input {
+input,
+textarea {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--bg);
+}
+
+textarea {
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.settings .section-label {
+  margin-top: 10px;
 }
 
 .hint,
